@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · DepDash</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">DepDash</a>
+  <form method="post" action="/scan">
+    <input type="hidden" name="back" value="{{.Path}}">
+    <button type="submit" {{if .Scan.Running}}disabled{{end}}>Rescanner tout</button>
+  </form>
+</header>
+{{template "scan-status" .}}
+<main>
+{{template "content" .}}
+</main>
+</body>
+</html>
+
+{{define "scan-status"}}
+{{if .Scan.Running}}
+<div id="scan-status" class="banner" hx-get="/scan/status" hx-trigger="every 2s" hx-swap="outerHTML">
+  <span class="spinner"></span> Scan en cours…
+</div>
+{{else if .Scan.LastError}}
+<div id="scan-status" class="banner banner-error">Dernier scan en échec : {{.Scan.LastError}}</div>
+{{else}}
+<div id="scan-status"></div>
+{{end}}
+{{end}}
+
+{{define "badge"}}<span class="badge st-{{.Key}}">{{.Label}}</span>{{end}}
+
+{{define "timeline"}}
+<div class="timeline">
+  {{range .Rows}}
+  <div class="tl-row{{if .Current}} tl-current{{end}}">
+    <div class="tl-label"><strong>{{.Cycle}}</strong>{{range .Tags}} <span class="tag">{{.}}</span>{{end}}</div>
+    <div class="tl-track" title="{{.Text}}">
+      {{if .Active}}<span class="tl-bar tl-active" style="{{.Active}}"></span><span class="tl-bar tl-security" style="{{.Security}}"></span>{{end}}
+      <span class="tl-today" style="{{$.Today}}"></span>
+    </div>
+    <div class="tl-text">{{.Text}}</div>
+  </div>
+  {{end}}
+  <div class="tl-legend">
+    <span>{{.Start}} → {{.End}}</span>
+    <span><i class="swatch tl-active"></i> support actif</span>
+    <span><i class="swatch tl-security"></i> sécurité seule</span>
+    <span><i class="swatch tl-today-swatch"></i> aujourd'hui</span>
+  </div>
+</div>
+{{end}}

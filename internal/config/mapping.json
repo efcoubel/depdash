@@ -1,0 +1,65 @@
+{
+  "runtimes": {
+    "php": {
+      "name": "PHP",
+      "product": "php",
+      "guide": "https://www.php.net/manual/fr/appendices.php"
+    },
+    "node": {
+      "name": "Node.js",
+      "product": "nodejs",
+      "guide": "https://nodejs.org/en/about/previous-releases"
+    }
+  },
+  "frameworks": [
+    {
+      "ecosystem": "composer",
+      "package": "symfony/framework-bundle",
+      "name": "Symfony",
+      "product": "symfony",
+      "guide": "https://symfony.com/doc/current/setup/upgrade_major.html"
+    },
+    {
+      "ecosystem": "composer",
+      "package": "laravel/framework",
+      "name": "Laravel",
+      "product": "laravel",
+      "guide": "https://laravel.com/docs/master/upgrade"
+    },
+    {
+      "ecosystem": "npm",
+      "package": "next",
+      "name": "Next.js",
+      "product": "nextjs",
+      "guide": "https://nextjs.org/docs/app/guides/upgrading"
+    },
+    {
+      "ecosystem": "npm",
+      "package": "nuxt",
+      "name": "Nuxt",
+      "product": "nuxt",
+      "guide": "https://nuxt.com/docs/getting-started/upgrade"
+    },
+    {
+      "ecosystem": "npm",
+      "package": "@angular/core",
+      "name": "Angular",
+      "product": "angular",
+      "guide": "https://angular.dev/update-guide"
+    },
+    {
+      "ecosystem": "npm",
+      "package": "react",
+      "name": "React",
+      "product": "react",
+      "guide": "https://react.dev/blog"
+    },
+    {
+      "ecosystem": "npm",
+      "package": "vue",
+      "name": "Vue",
+      "product": "vue",
+      "guide": "https://v3-migration.vuejs.org/"
+    }
+  ]
+}

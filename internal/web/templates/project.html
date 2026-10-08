@@ -1,0 +1,138 @@
+{{define "content"}}
+{{with .Data}}
+{{$p := .Project}}
+<p class="crumbs"><a href="/">Vue d'ensemble</a> / {{$p.Title}}</p>
+
+<div class="title-row">
+  <h1>{{$p.Title}} <span class="tag">{{$p.Ecosystem}}</span></h1>
+  <form method="post" action="/projects/{{$p.ID}}/scan">
+    <button type="submit" {{if $.Scan.Running}}disabled{{end}}>Rescanner ce projet</button>
+  </form>
+</div>
+<p class="muted"><code>{{$p.Path}}</code> · dernier scan {{ago $p.LastScanAt}}</p>
+
+{{if $p.ScanError}}
+<div class="notice notice-error"><strong>Projet en erreur.</strong> {{$p.ScanError}}{{if $p.Deps}} — l'inventaire affiché est le dernier valide.{{end}}</div>
+{{else if not $p.HasLockfile}}
+<div class="notice">Pas de lockfile : les versions installées sont inconnues, le statut est estimé à partir des contraintes du manifeste.</div>
+{{end}}
+
+<section class="components">
+  {{range $c := (components $p)}}
+  <article class="card">
+    <header>
+      <div>
+        <span class="kind">{{if eq $c.Kind "runtime"}}Runtime{{else}}Framework{{end}}</span>
+        <h2>{{$c.Name}} {{if $c.Version}}{{$c.Version}}{{else}}<span class="muted">version inconnue</span>{{end}}
+          {{if $c.LTS}}<span class="tag">LTS</span>{{end}}
+          {{if $c.Manual}}<span class="tag tag-manual">saisie manuelle</span>{{end}}
+        </h2>
+        {{if and $c.Source (not $c.Manual)}}<p class="muted small-text">Source : {{$c.Source}}</p>{{end}}
+      </div>
+      {{template "badge" $c.Status}}
+    </header>
+    <dl>
+      <div><dt>Dernière version</dt><dd>{{or $c.Latest "—"}}</dd></div>
+      <div><dt>Dernière LTS</dt><dd>{{or $c.LatestLTS "—"}}</dd></div>
+      <div><dt>Fin du support actif</dt><dd>{{or $c.EOLActive "—"}}</dd></div>
+      <div><dt>Fin du support sécurité</dt><dd>{{or $c.EOLSecurity "—"}}</dd></div>
+    </dl>
+    {{with $c.Timeline}}{{template "timeline" .}}{{end}}
+    <footer class="muted small-text">
+      {{if $c.Guide}}<a href="{{$c.Guide}}" target="_blank" rel="noopener">Guide de migration officiel ↗</a>{{end}}
+      {{if $c.FetchedAt}}<span>endoflife.date, lu {{ago $c.FetchedAt}}</span>{{else}}<span>Cycle de vie non disponible</span>{{end}}
+    </footer>
+  </article>
+  {{end}}
+</section>
+
+<h2>Dépendances</h2>
+<form class="filters" method="get" action="/projects/{{$p.ID}}"
+      hx-get="/projects/{{$p.ID}}" hx-trigger="change" hx-target="#deps" hx-select="#deps" hx-swap="outerHTML" hx-push-url="true">
+  <label>Statut
+    <select name="status">
+      <option value="">Tous</option>
+      {{range statuses}}<option value="{{.Key}}" {{if eq $.Data.Filter.Status .Key}}selected{{end}}>{{.Label}}</option>{{end}}
+    </select>
+  </label>
+  <label>Portée
+    <select name="scope">
+      <option value="direct" {{if eq .Filter.Scope "direct"}}selected{{end}}>Directes seulement</option>
+      <option value="all" {{if eq .Filter.Scope "all"}}selected{{end}}>Avec les sous-dépendances</option>
+    </select>
+  </label>
+  <label class="check"><input type="checkbox" name="nodev" value="1" {{if .Filter.NoDev}}checked{{end}}> Masquer les dépendances de dev</label>
+  <noscript><button type="submit">Filtrer</button></noscript>
+</form>
+
+<div id="deps">
+  <p class="muted small-text">{{len .Deps}} sur {{.Total}} dépendances</p>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Paquet</th><th>Installée</th><th>Dernière</th><th>Statut</th><th>Changelog</th></tr>
+    </thead>
+    <tbody>
+      {{range .Deps}}
+      <tr>
+        <td>
+          <a href="{{.URL}}">{{.Name}}</a>
+          {{if .Dev}}<span class="tag">dev</span>{{end}}
+          {{if not .Direct}}<span class="tag">indirecte</span>{{end}}
+          {{if .Manual}}<span class="tag tag-manual">saisie manuelle</span>{{end}}
+        </td>
+        <td class="mono">{{if .Installed}}{{.Installed}}{{else if .Constraint}}{{.Constraint}} <span class="tag" title="Version exacte inconnue : contrainte du manifeste">contrainte</span>{{else}}<span class="muted">—</span>{{end}}</td>
+        <td class="mono">{{if .Latest}}{{.Latest}}{{if .Stale}} <span class="tag" title="Registre injoignable : valeur en cache du {{datetime .FetchedAt}}">cache du {{datetime .FetchedAt}}</span>{{end}}{{else}}<span class="muted">—</span>{{end}}</td>
+        <td>{{template "badge" .Status}}</td>
+        <td>{{if .Changelog}}<a href="{{.Changelog}}" target="_blank" rel="noopener">Versions ↗</a>{{else}}<span class="muted">—</span>{{end}}</td>
+      </tr>
+      {{else}}
+      <tr><td colspan="5" class="empty">Aucune dépendance ne correspond à ces filtres.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<details class="manual">
+  <summary>Saisie manuelle</summary>
+  <p class="muted small-text">Une saisie manuelle prime sur la détection et reste marquée comme telle. Laissez la version vide pour revenir à la détection.</p>
+  <div class="manual-grid">
+    <form method="post" action="/projects/{{$p.ID}}/manual">
+      <input type="hidden" name="action" value="runtime">
+      <h3>Runtime</h3>
+      <label>Version <input name="version" placeholder="8.3" value="{{if $p.Runtime}}{{if $p.Runtime.Manual}}{{$p.Runtime.Version}}{{end}}{{end}}"></label>
+      <button type="submit">Enregistrer</button>
+    </form>
+    <form method="post" action="/projects/{{$p.ID}}/manual">
+      <input type="hidden" name="action" value="framework">
+      <h3>Framework</h3>
+      <label>Nom <input name="name" placeholder="Symfony" value="{{if $p.Framework}}{{if $p.Framework.Manual}}{{$p.Framework.Name}}{{end}}{{end}}"></label>
+      <label>Version <input name="version" placeholder="7.4.2" value="{{if $p.Framework}}{{if $p.Framework.Manual}}{{$p.Framework.Version}}{{end}}{{end}}"></label>
+      <button type="submit">Enregistrer</button>
+    </form>
+    <form method="post" action="/projects/{{$p.ID}}/manual">
+      <input type="hidden" name="action" value="dependency">
+      <h3>Dépendance</h3>
+      <label>Paquet <input name="name" placeholder="vendor/paquet" required></label>
+      <label>Version <input name="version" placeholder="1.2.3" required></label>
+      <button type="submit">Ajouter</button>
+    </form>
+  </div>
+  {{if .Manual}}
+  <ul class="manual-list">
+    {{range .Manual}}
+    <li>
+      <span class="mono">{{.Name}} {{.Installed}}</span>
+      <form method="post" action="/projects/{{$p.ID}}/manual">
+        <input type="hidden" name="action" value="delete-dependency">
+        <input type="hidden" name="dep" value="{{.ID}}">
+        <button class="small" type="submit">Retirer</button>
+      </form>
+    </li>
+    {{end}}
+  </ul>
+  {{end}}
+</details>
+{{end}}
+{{end}}

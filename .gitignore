@@ -1,0 +1,7 @@
+/data/
+/bin/
+/depdash
+*.db
+*.db-shm
+*.db-wal
+.DS_Store

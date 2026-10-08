@@ -1,0 +1,6 @@
+.git
+data
+bin
+testdata
+README.md
+docker-compose.yml

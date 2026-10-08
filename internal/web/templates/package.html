@@ -1,0 +1,34 @@
+{{define "content"}}
+{{with .Data}}
+<p class="crumbs"><a href="/">Vue d'ensemble</a> / Paquet</p>
+<h1>{{.Name}} <span class="tag">{{.Ecosystem}}</span></h1>
+<p class="muted">
+  Dernière version stable : <strong class="mono">{{or .Latest "inconnue"}}</strong>
+  {{if .Changelog}} · <a href="{{.Changelog}}" target="_blank" rel="noopener">Versions ↗</a>{{end}}
+</p>
+
+<h2>Utilisé par {{len .Usages}} projet{{if gt (len .Usages) 1}}s{{end}}</h2>
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr><th>Projet</th><th>Installée</th><th>Contrainte</th><th>Statut</th></tr>
+  </thead>
+  <tbody>
+    {{range .Usages}}
+    <tr>
+      <td>
+        <a class="strong" href="/projects/{{.Project.ID}}">{{.Project.Title}}</a>
+        {{if .Dep.Dev}}<span class="tag">dev</span>{{end}}
+        {{if not .Dep.Direct}}<span class="tag">indirecte</span>{{end}}
+        {{if .Dep.Manual}}<span class="tag tag-manual">saisie manuelle</span>{{end}}
+      </td>
+      <td class="mono">{{or .Dep.Installed "—"}}</td>
+      <td class="mono">{{or .Dep.Constraint "—"}}</td>
+      <td>{{template "badge" .Dep.Status}}</td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}
+{{end}}

@@ -1,0 +1,68 @@
+{{define "content"}}
+{{with .Data}}
+<h1>Vue d'ensemble</h1>
+
+{{if eq .Total 0}}
+<p class="empty">Aucun projet détecté pour l'instant. Vérifiez le dossier monté sur <code>/projects</code>, puis relancez un scan.</p>
+{{else}}
+<nav class="filters">
+  <a class="chip{{if not .Status}} chip-on{{end}}" href="/{{if .Ecosystem}}?ecosystem={{.Ecosystem}}{{end}}">Tous <b>{{.Total}}</b></a>
+  {{range .Totals}}
+  <a class="chip st-{{.Status.Key}}{{if eq $.Data.Status .Status.Key}} chip-on{{end}}"
+     href="/?status={{.Status.Key}}{{if $.Data.Ecosystem}}&ecosystem={{$.Data.Ecosystem}}{{end}}">{{.Status.Label}} <b>{{.Count}}</b></a>
+  {{end}}
+  {{if gt (len .Ecosystems) 1}}
+  <span class="sep"></span>
+  {{range .Ecosystems}}
+  <a class="chip{{if eq $.Data.Ecosystem .}} chip-on{{end}}"
+     href="/?{{if $.Data.Status}}status={{$.Data.Status}}&{{end}}{{if ne $.Data.Ecosystem .}}ecosystem={{.}}{{end}}">{{.}}</a>
+  {{end}}
+  {{end}}
+</nav>
+
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Projet</th>
+      <th>Runtime</th>
+      <th>Framework</th>
+      <th>Dépendances directes</th>
+      <th>Statut</th>
+      <th>Dernier scan</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Projects}}
+    {{$id := .ID}}
+    <tr>
+      <td>
+        <a class="strong" href="/projects/{{.ID}}">{{.Title}}</a>
+        <span class="tag">{{.Ecosystem}}</span>
+        {{if .ScanError}}<div class="error-line" title="{{.ScanError}}">Erreur : {{.ScanError}}</div>{{end}}
+      </td>
+      <td class="nowrap">{{with .Runtime}}<span class="dot st-{{.Status.Key}}" title="{{.Status.Label}}"></span> {{.Name}} {{if .Version}}{{.Version}}{{else}}<span class="muted">?</span>{{end}}{{else}}<span class="muted">—</span>{{end}}</td>
+      <td class="nowrap">{{with .Framework}}<span class="dot st-{{.Status.Key}}" title="{{.Status.Label}}"></span> {{.Name}} {{.Version}}{{else}}<span class="muted">—</span>{{end}}</td>
+      <td class="counts">
+        {{range .Counts}}<a class="count st-{{.Status.Key}}" href="/projects/{{$id}}?status={{.Status.Key}}" title="{{.Status.Label}}">{{.Count}}</a>{{else}}<span class="muted">—</span>{{end}}
+      </td>
+      <td>{{if .ScanError}}<span class="badge st-error">Erreur</span>{{else}}{{template "badge" .Worst}}{{end}}</td>
+      <td class="muted nowrap" title="{{datetime .LastScanAt}}">{{ago .LastScanAt}}</td>
+      <td>
+        <form method="post" action="/projects/{{.ID}}/scan">
+          <input type="hidden" name="back" value="{{$.Path}}">
+          <button class="small" type="submit" {{if $.Scan.Running}}disabled{{end}}>Rescanner</button>
+        </form>
+      </td>
+    </tr>
+    {{else}}
+    <tr><td colspan="7" class="empty">Aucun projet ne correspond à ces filtres.</td></tr>
+    {{end}}
+  </tbody>
+</table>
+</div>
+<p class="muted small-text">Les compteurs portent sur les dépendances directes. Export : <a href="/api/projects">/api/projects</a></p>
+{{end}}
+{{end}}
+{{end}}

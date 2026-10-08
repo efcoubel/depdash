@@ -1,0 +1,13 @@
+services:
+  depdash:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"    # pas d'authentification : écoute locale seulement
+    volumes:
+      - ~/projets:/projects:ro   # lecture seule
+      - ./data:/data             # SQLite + cache
+    environment:
+      DEPDASH_SCAN_INTERVAL: 6h
+      DEPDASH_MAX_DEPTH: 4
+      DEPDASH_EOL_WARNING: 180d
+    restart: unless-stopped
