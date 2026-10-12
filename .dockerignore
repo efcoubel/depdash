@@ -1,6 +1,12 @@
 .git
+.github
+.idea
+.env
 data
 bin
+dist
 testdata
 README.md
+README.fr.md
 docker-compose.yml
+docker-compose.override.yml

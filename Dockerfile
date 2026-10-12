@@ -1,11 +1,14 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.26-alpine AS build
+# Compilation croisée sur la plateforme de build : pas d'émulation pour les images multi-architectures.
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /depdash ./cmd/depdash
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /depdash ./cmd/depdash
 
 # Image finale : le binaire seul (templates, CSS et htmx y sont embarqués).
 FROM gcr.io/distroless/static-debian12

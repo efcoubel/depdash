@@ -1,13 +1,14 @@
 services:
   depdash:
-    build: .
+    image: ghcr.io/efcoubel/depdash:latest
     ports:
       - "127.0.0.1:8080:8080"    # pas d'authentification : écoute locale seulement
     volumes:
-      - ~/projets:/projects:ro   # lecture seule
+      - ${PROJECTS_DIR:?définir PROJECTS_DIR dans .env (voir .env.example)}:/projects:ro   # lecture seule
       - ./data:/data             # SQLite + cache
     environment:
       DEPDASH_SCAN_INTERVAL: 6h
       DEPDASH_MAX_DEPTH: 4
       DEPDASH_EOL_WARNING: 180d
+      DEPDASH_IGNORE: ${DEPDASH_IGNORE:-}
     restart: unless-stopped

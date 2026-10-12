@@ -1,7 +1,11 @@
 /data/
 /bin/
+/dist/
 /depdash
 *.db
 *.db-shm
 *.db-wal
 .DS_Store
+.idea/
+.env
+docker-compose.override.yml
