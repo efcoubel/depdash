@@ -1,9 +1,10 @@
 module github.com/efcoubel/depdash
 
-go 1.26.0
+go 1.27.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
+	golang.org/x/mod v0.42.0
 	modernc.org/sqlite v1.60.1
 )
 

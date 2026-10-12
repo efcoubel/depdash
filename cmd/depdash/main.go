@@ -20,9 +20,11 @@ import (
 	"github.com/efcoubel/depdash/internal/config"
 	"github.com/efcoubel/depdash/internal/enrich"
 	composerparser "github.com/efcoubel/depdash/internal/parser/composer"
+	"github.com/efcoubel/depdash/internal/parser/gomod"
 	npmparser "github.com/efcoubel/depdash/internal/parser/npm"
 	"github.com/efcoubel/depdash/internal/registry"
 	"github.com/efcoubel/depdash/internal/registry/endoflife"
+	"github.com/efcoubel/depdash/internal/registry/goproxy"
 	npmregistry "github.com/efcoubel/depdash/internal/registry/npm"
 	"github.com/efcoubel/depdash/internal/registry/packagist"
 	"github.com/efcoubel/depdash/internal/scanner"
@@ -92,7 +94,7 @@ func app(cfg config.Config, log *slog.Logger, offline bool) (*store.Store, *sche
 		return nil, nil, mapping, fmt.Errorf("ouverture de la base : %w", err)
 	}
 	sched := &scheduler.Scheduler{
-		Scanner: scanner.New(cfg.ProjectsDir, cfg.MaxDepth, cfg.Ignore, composerparser.New(), npmparser.New()),
+		Scanner: scanner.New(cfg.ProjectsDir, cfg.MaxDepth, cfg.Ignore, composerparser.New(), npmparser.New(), gomod.New()),
 		Store:   st,
 		Mapping: mapping,
 		Log:     log,
@@ -102,6 +104,7 @@ func app(cfg config.Config, log *slog.Logger, offline bool) (*store.Store, *sche
 		sched.Enricher = enrich.New(st, endoflife.New(registry.NewClient(), ""), mapping, log,
 			packagist.New(registry.NewClient(), ""),
 			npmregistry.New(registry.NewClient(), ""),
+			goproxy.New(registry.NewClient(), ""),
 		)
 	}
 	return st, sched, mapping, nil

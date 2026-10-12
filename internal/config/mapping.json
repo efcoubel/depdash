@@ -9,6 +9,11 @@
       "name": "Node.js",
       "product": "nodejs",
       "guide": "https://nodejs.org/en/about/previous-releases"
+    },
+    "go": {
+      "name": "Go",
+      "product": "go",
+      "guide": "https://go.dev/doc/devel/release"
     }
   },
   "frameworks": [

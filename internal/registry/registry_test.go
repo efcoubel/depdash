@@ -13,6 +13,7 @@ import (
 
 	"github.com/efcoubel/depdash/internal/registry"
 	"github.com/efcoubel/depdash/internal/registry/endoflife"
+	"github.com/efcoubel/depdash/internal/registry/goproxy"
 	"github.com/efcoubel/depdash/internal/registry/npm"
 	"github.com/efcoubel/depdash/internal/registry/packagist"
 )
@@ -145,6 +146,35 @@ func TestNPM(t *testing.T) {
 		t.Errorf("paquet à scope : %+v, %v", rel, err)
 	}
 	for _, name := range []string{"missing", "unpublished", "../secret", "a b"} {
+		if _, err := reg.Latest(context.Background(), name); !errors.Is(err, registry.ErrNotFound) {
+			t.Errorf("%s : %v, ErrNotFound attendue", name, err)
+		}
+	}
+}
+
+func TestGoProxy(t *testing.T) {
+	srv := serve(t, map[string]string{
+		"/github.com/!masterminds/semver/v3/@latest": `{"Version": "v3.5.0", "Time": "2026-01-01T00:00:00Z"}`,
+		"/modernc.org/sqlite/@latest":                `{"Version": "v1.60.1"}`,
+		"/example.com/untagged/@latest":              `{"Version": "v0.0.0-20230129092748-24d4a6f8daec"}`,
+	})
+	reg := goproxy.New(client(), srv.URL)
+
+	rel, err := reg.Latest(context.Background(), "github.com/Masterminds/semver/v3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rel.Latest != "3.5.0" || rel.URL != "https://github.com/Masterminds/semver" {
+		t.Errorf("release = %+v", rel)
+	}
+	if rel, err := reg.Latest(context.Background(), "modernc.org/sqlite"); err != nil || rel.URL != "https://pkg.go.dev/modernc.org/sqlite" {
+		t.Errorf("module hors GitHub : %+v, %v", rel, err)
+	}
+	rel, err = reg.Latest(context.Background(), "example.com/untagged")
+	if err != nil || rel.Latest != "" || !reflect.DeepEqual(rel.Prereleases, []string{"0.0.0-20230129092748-24d4a6f8daec"}) {
+		t.Errorf("module sans tag : %+v, %v", rel, err)
+	}
+	for _, name := range []string{"example.com/missing", "../secret", "a b"} {
 		if _, err := reg.Latest(context.Background(), name); !errors.Is(err, registry.ErrNotFound) {
 			t.Errorf("%s : %v, ErrNotFound attendue", name, err)
 		}

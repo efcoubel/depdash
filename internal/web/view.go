@@ -319,6 +319,8 @@ func changelogURL(ecosystem, name, repo string) string {
 		return "https://www.npmjs.com/package/" + name + "?activeTab=versions"
 	case "composer":
 		return "https://packagist.org/packages/" + name
+	case "go":
+		return "https://pkg.go.dev/" + name + "?tab=versions"
 	}
 	return repo
 }
