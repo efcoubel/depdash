@@ -11,7 +11,7 @@ import (
 )
 
 // DefaultIgnore liste les dossiers jamais parcourus par le scanner.
-var DefaultIgnore = []string{"vendor", "node_modules", ".git", "var", "dist", "build"}
+var DefaultIgnore = []string{"vendor", "node_modules", ".git", "var", "dist", "build", ".next"}
 
 type Config struct {
 	ProjectsDir  string

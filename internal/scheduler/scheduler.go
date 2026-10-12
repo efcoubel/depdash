@@ -26,6 +26,8 @@ type State struct {
 	LastError string
 }
 
+var errNothingToTrack = errors.New("manifeste sans dépendance ni runtime : rien à suivre")
+
 type Scheduler struct {
 	Scanner  *scanner.Scanner
 	Store    *store.Store
@@ -109,7 +111,8 @@ func (s *Scheduler) launch(run func(context.Context) error) bool {
 }
 
 // ScanAll détecte les projets, reparse ceux dont les manifestes ont changé
-// (tous si force), retire ceux qui ont disparu, puis enrichit.
+// (tous si force), retire ceux qui ont disparu ou n'ont plus rien à suivre,
+// puis enrichit.
 func (s *Scheduler) ScanAll(ctx context.Context, force bool) error {
 	found, err := s.Scanner.Scan()
 	if err != nil {
@@ -118,7 +121,7 @@ func (s *Scheduler) ScanAll(ctx context.Context, force bool) error {
 	now := time.Now()
 	var keep []int64
 	repos := map[int64]bool{}
-	var parsed, unchanged int
+	var parsed, unchanged, ignored int
 	for _, f := range found {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -127,11 +130,15 @@ func (s *Scheduler) ScanAll(ctx context.Context, force bool) error {
 		if err != nil {
 			return err
 		}
-		repos[repoID] = true
 		id, changed, err := s.scanOne(ctx, f, repoID, force)
+		if errors.Is(err, errNothingToTrack) {
+			ignored++
+			continue
+		}
 		if err != nil {
 			return err
 		}
+		repos[repoID] = true
 		keep = append(keep, id)
 		if changed {
 			parsed++
@@ -149,7 +156,7 @@ func (s *Scheduler) ScanAll(ctx context.Context, force bool) error {
 	if err := s.Store.TouchRepos(ctx, ids, now); err != nil {
 		return err
 	}
-	s.Log.Info("inventaire à jour", "projects", len(found), "parsed", parsed, "unchanged", unchanged)
+	s.Log.Info("inventaire à jour", "projects", len(keep), "parsed", parsed, "unchanged", unchanged, "ignored", ignored)
 	return s.enrich(ctx)
 }
 
@@ -182,7 +189,8 @@ func (s *Scheduler) ScanProject(ctx context.Context, id int64) error {
 }
 
 // scanOne parse un projet si nécessaire. Un manifeste invalide marque le
-// projet en erreur ; seule une erreur de base interrompt le scan.
+// projet en erreur, un manifeste sans rien à suivre renvoie
+// errNothingToTrack ; seule une erreur de base interrompt le scan.
 func (s *Scheduler) scanOne(ctx context.Context, f scanner.Found, repoID int64, force bool) (id int64, changed bool, err error) {
 	eco := f.Parser.Ecosystem()
 	hash, hashErr := parser.Hash(f.Dir, f.Parser.Files())
@@ -194,7 +202,7 @@ func (s *Scheduler) scanOne(ctx context.Context, f scanner.Found, repoID int64, 
 	}
 	if known && !force && hashErr == nil && existing.ManifestHash == hash &&
 		existing.ScanError == "" && existing.RepoID == repoID {
-		return existing.ID, false, nil
+		return existing.ID, false, s.checkTracked(ctx, existing)
 	}
 
 	var parsed *parser.Project
@@ -208,6 +216,10 @@ func (s *Scheduler) scanOne(ctx context.Context, f scanner.Found, repoID int64, 
 		return id, true, err
 	}
 
+	if parsed.Empty() && !known {
+		return 0, false, errNothingToTrack
+	}
+
 	p := store.Project{
 		RepoID: repoID, Path: f.Path, Ecosystem: eco,
 		Runtime: parsed.Runtime, RuntimeVersion: parsed.RuntimeVersion, RuntimeSource: parsed.RuntimeSource,
@@ -215,7 +227,30 @@ func (s *Scheduler) scanOne(ctx context.Context, f scanner.Found, repoID int64, 
 	}
 	p.Framework, p.FrameworkVersion = DetectFramework(s.Mapping, eco, parsed.Dependencies)
 	id, err = s.Store.SaveProject(ctx, p, parsed.Dependencies)
-	return id, true, err
+	if err != nil || !parsed.Empty() {
+		return id, true, err
+	}
+	saved, err := s.Store.Project(ctx, id)
+	if err != nil {
+		return 0, false, err
+	}
+	return id, true, s.checkTracked(ctx, saved)
+}
+
+// checkTracked renvoie errNothingToTrack pour un projet enregistré qui n'a
+// plus rien à suivre. Une saisie manuelle suffit à le retenir.
+func (s *Scheduler) checkTracked(ctx context.Context, p store.Project) error {
+	if p.HasLockfile || p.RuntimeVersion != "" || p.Framework != "" {
+		return nil
+	}
+	deps, err := s.Store.Dependencies(ctx, p.ID)
+	if err != nil {
+		return err
+	}
+	if len(deps) == 0 {
+		return errNothingToTrack
+	}
+	return nil
 }
 
 func (s *Scheduler) enrich(ctx context.Context) error {

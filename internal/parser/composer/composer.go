@@ -30,6 +30,27 @@ func (Parser) Files() []string {
 	return append([]string{"composer.json", "composer.lock", ".php-version"}, parser.DockerfileGlobs...)
 }
 
+// DependencyDir lit config.vendor-dir, par lequel un projet installe ses
+// dépendances ailleurs que dans vendor/.
+func (Parser) DependencyDir(dir string) string {
+	data, err := os.ReadFile(filepath.Join(dir, "composer.json"))
+	if err != nil {
+		return ""
+	}
+	var m manifest
+	if json.Unmarshal(data, &m) != nil {
+		return ""
+	}
+	var config struct {
+		VendorDir string `json:"vendor-dir"`
+	}
+	// config peut valoir [] dans un manifeste généré : l'erreur est ignorée.
+	if json.Unmarshal(m.Config, &config) != nil {
+		return ""
+	}
+	return config.VendorDir
+}
+
 type manifest struct {
 	Require    parser.StringMap `json:"require"`
 	RequireDev parser.StringMap `json:"require-dev"`

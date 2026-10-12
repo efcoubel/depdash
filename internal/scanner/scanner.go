@@ -42,7 +42,7 @@ func (s *Scanner) Scan() ([]Found, error) {
 		return nil, err
 	}
 	var found []Found
-	s.walk(s.Root, 0, "", &found)
+	s.walk(s.Root, 0, "", map[string]bool{}, &found)
 	sort.SliceStable(found, func(i, j int) bool {
 		if found[i].Path != found[j].Path {
 			return found[i].Path < found[j].Path
@@ -53,8 +53,9 @@ func (s *Scanner) Scan() ([]Found, error) {
 }
 
 // walk descend dans dir. repo est le chemin absolu du repo englobant le plus
-// proche, vide tant qu'aucun .git n'a été croisé.
-func (s *Scanner) walk(dir string, depth int, repo string, found *[]Found) {
+// proche, vide tant qu'aucun .git n'a été croisé. skip reçoit les chemins
+// absolus des dossiers de dépendances déclarés par les manifestes croisés.
+func (s *Scanner) walk(dir string, depth int, repo string, skip map[string]bool, found *[]Found) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return // dossier illisible : on continue ailleurs
@@ -66,8 +67,17 @@ func (s *Scanner) walk(dir string, depth int, repo string, found *[]Found) {
 		}
 	}
 	for _, p := range s.Parsers {
-		if p.Detect(dir) {
-			*found = append(*found, s.found(dir, repo, p))
+		if !p.Detect(dir) {
+			continue
+		}
+		*found = append(*found, s.found(dir, repo, p))
+		if d, ok := p.(parser.DependencyDirer); ok {
+			if deps := d.DependencyDir(dir); deps != "" {
+				if !filepath.IsAbs(deps) {
+					deps = filepath.Join(dir, deps)
+				}
+				skip[filepath.Clean(deps)] = true
+			}
 		}
 	}
 	if depth >= s.MaxDepth {
@@ -76,10 +86,11 @@ func (s *Scanner) walk(dir string, depth int, repo string, found *[]Found) {
 	for _, e := range entries {
 		// Les liens symboliques ne sont pas suivis : pas de boucle, pas de
 		// sortie du dossier monté.
-		if !e.IsDir() || s.ignore[e.Name()] {
+		sub := filepath.Join(dir, e.Name())
+		if !e.IsDir() || s.ignore[e.Name()] || skip[sub] {
 			continue
 		}
-		s.walk(filepath.Join(dir, e.Name()), depth+1, repo, found)
+		s.walk(sub, depth+1, repo, skip, found)
 	}
 }
 

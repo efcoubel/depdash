@@ -117,3 +117,34 @@ func TestScanMissingRoot(t *testing.T) {
 		t.Error("racine absente : erreur attendue")
 	}
 }
+
+func TestScanSkipsDeclaredDependencyDir(t *testing.T) {
+	root := tree(t,
+		"app/libs/symfony/console/composer.json",
+		"app/third/party/psr/log/composer.json",
+		// même nom de dossier, mais aucun manifeste ne le déclare
+		"other/libs/tool/composer.json",
+	)
+	manifests := map[string]string{
+		"app/composer.json":       `{"config": {"vendor-dir": "libs"}}`,
+		"app/third/composer.json": `{"config": {"vendor-dir": "party"}}`,
+	}
+	for name, content := range manifests {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	found, err := New(root, 4, nil, composer.New()).Scan()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"app", "app/third", "other/libs/tool"}
+	if len(found) != len(want) {
+		t.Fatalf("projets trouvés : %+v, attendus : %v", found, want)
+	}
+	for i, path := range want {
+		if found[i].Path != path {
+			t.Errorf("projet %d = %s, attendu %s", i, found[i].Path, path)
+		}
+	}
+}

@@ -144,3 +144,22 @@ func TestDetect(t *testing.T) {
 		t.Error("métadonnées du parser")
 	}
 }
+
+func TestDependencyDir(t *testing.T) {
+	for content, want := range map[string]string{
+		`{"config": {"vendor-dir": "libs"}}`:  "libs",
+		`{"config": {"sort-packages": true}}`: "",
+		`{"config": []}`:                      "",
+		`{}`:                                  "",
+		`{`:                                   "",
+	} {
+		dir := t.TempDir()
+		write(t, dir, "composer.json", content)
+		if got := New().DependencyDir(dir); got != want {
+			t.Errorf("%s : dossier %q, attendu %q", content, got, want)
+		}
+	}
+	if got := New().DependencyDir(t.TempDir()); got != "" {
+		t.Errorf("sans manifeste : dossier %q", got)
+	}
+}

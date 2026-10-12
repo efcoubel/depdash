@@ -35,6 +35,13 @@ type Project struct {
 	Dependencies   []Dependency
 }
 
+// Empty indique qu'il n'y a rien à suivre : ni dépendance, ni lockfile, ni
+// version de runtime. C'est le cas des manifestes de circonstance, comme le
+// package.json réduit à son « type » d'une sortie de build.
+func (p *Project) Empty() bool {
+	return len(p.Dependencies) == 0 && !p.HasLockfile && p.RuntimeVersion == ""
+}
+
 // Parser lit les manifestes d'un écosystème.
 type Parser interface {
 	Ecosystem() string
@@ -44,6 +51,15 @@ type Parser interface {
 	// projet) des fichiers dont le contenu influence Parse. Leur empreinte
 	// permet de ne pas reparser un projet inchangé.
 	Files() []string
+}
+
+// DependencyDirer est implémenté par les parsers dont le manifeste peut
+// déplacer le dossier des dépendances installées. Le scanner n'y descend pas :
+// chaque paquet installé y porte son propre manifeste.
+type DependencyDirer interface {
+	// DependencyDir renvoie le dossier déclaré par le manifeste de dir, ou « »
+	// s'il garde l'emplacement par défaut.
+	DependencyDir(dir string) string
 }
 
 // DockerfileGlobs liste les emplacements usuels d'un Dockerfile de projet.
